@@ -185,3 +185,15 @@ Proof.
     + change (vector_map (idfun A) (tl v) = tl v).
       apply IHn.
 Defined.
+
+Lemma vector_map_comp {A B C: UU} (f: A → B) (g: B → C) {n: nat}:
+  (vector_map (funcomp f g): Vector A n -> Vector C n) = funcomp (vector_map f) (vector_map g).
+Proof.
+  apply funextfun.
+  intro v.
+  induction n.
+  - reflexivity.
+  - apply vector_eq.
+    + reflexivity.
+    + apply IHn.
+Defined.
