@@ -6,6 +6,7 @@
 
 Require Import UniMath.Combinatorics.StandardFiniteSets.
 Require Import UniMath.Foundations.NaturalNumbers.
+Require Import UniMath.MoreFoundations.PartA. (* maponpaths_2 *)
 
 Local Open Scope nat.
 Local Open Scope stn.
@@ -84,8 +85,7 @@ Proof.
       apply maponpaths.
       apply stn_extens.
       reflexivity.
-    + etrans.
-      { apply meq. }
+    + etrans. { apply meq. }
       unfold funcomp, drop.
       apply maponpaths.
       apply stn_extens.
@@ -185,7 +185,101 @@ Proof.
   - apply Hcons, H.
 Defined.
 
+(** *** Transport. *)
+
+Lemma transportf_vcons_gen {m} (v : Vector A m)
+      {n} (p : S m = S n) (q : m = n) (x : A)
+  : transportf (Vector A) p (vcons x v) =
+    vcons x (transportf (Vector A) q v).
+Proof.
+  assert (pq : p = maponpaths S q).
+  { apply uip.
+    exact isasetnat. }
+  - rewrite pq.
+    induction q.
+    reflexivity.
+Defined.
+
+Lemma transportf_vcons {m} (v : Vector A m) {n} (p : S m = S n) x
+  : transportf (Vector A) p (vcons x v) =
+    vcons x (transportf (Vector A) (invmaponpathsS _ _ p) v).
+Proof.
+  apply transportf_vcons_gen.
+Defined.
+
+Lemma vcons_transportf {m} (v : Vector A m) {n} (p : m = n) x
+  : vcons x (transportf (Vector A) p v) =
+    transportf (Vector A) (maponpaths S p) (vcons x v).
+Proof.
+  apply pathsinv0.
+  apply transportf_vcons_gen.
+Defined.
+
+(** *** Append. *)
+
+Definition vector_append {m} (u : Vector A m) {n} (v : Vector A n)
+  : Vector A (m + n)
+  := vector_ind (λ (p : nat) (_ : Vector A p), Vector A (p + n))
+                v
+                (λ (x : A) (p : nat) (_ : Vector A p) (w : Vector A (p + n)),
+                 vcons x w)
+                m u.
+
+Lemma vector_append_lid (u : Vector A 0) {n} (v : Vector A n)
+  : vector_append u v = v.
+Proof.
+  induction u.
+  reflexivity.
+Defined.
+
+Lemma vector_append_rid {n} (u : Vector A n) (v : Vector A 0)
+  : vector_append u v = transportb (Vector A) (natplusr0 n) u.
+Proof.
+  induction n as [|k Hk].
+  - induction u.
+    induction v.
+    reflexivity.
+  - induction u as (x, w).
+    change (vcons x (vector_append w v) =
+            transportb (Vector A) (natplusr0 (S k)) (vcons x w)).
+    apply pathsinv0.
+    etrans. { apply transportf_vcons. }
+    apply (maponpaths).
+    apply pathsinv0.
+    etrans. { apply Hk. }
+    apply (maponpaths_2 (transportf (Vector A))).
+    apply uip.
+    exact isasetnat.
+Defined.
+
+Lemma vector_append_assocl
+      {m} (u : Vector A m)
+      {n} (v : Vector A n)
+      {p} (w : Vector A p)
+  : vector_append (vector_append u v) w =
+    transportb (Vector A)
+               (natplusassoc m n p)
+               (vector_append u (vector_append v w)).
+Proof.
+  generalize n v p w. clear n v p w.
+  induction m as [|k Hk].
+  { intros. induction u. reflexivity. }
+  intros.
+  change (vector_append (vector_append u v) w)
+    with (vcons (hd u) (vector_append (vector_append (tl u) v) w)).
+  apply pathsinv0.
+  etrans. { apply transportf_vcons. }
+  apply maponpaths.
+  apply pathsinv0.
+  etrans. { apply Hk. }
+          apply (maponpaths_2 (transportf (Vector A))).
+  apply uip.
+  exact isasetnat.
+Defined.
+
 End Vectors.
+
+(** *** Mapping. *)
 
 Definition vector_map {A B : UU} (f : A → B) {n} (v : Vector A n) : Vector B n.
 Proof.
@@ -218,10 +312,8 @@ Proof.
     + apply hd_vector_map.
     + change (el (tl (vector_map f v)) (stnpair _ k (nat_S_lt _ _ jlt)) =
               f (el (tl v) (stnpair _ k (nat_S_lt _ _ jlt)))).
-      etrans.
-      { apply el_tl. }
-      etrans.
-      { apply H. }
+      etrans. { apply el_tl. }
+      etrans. { apply H. }
       apply maponpaths.
       apply maponpaths.
       apply stn_extens.
@@ -243,14 +335,6 @@ Definition vector_foldr1 {A : UU} (f : A -> A -> A) {n} : Vector A (S n) → A
                uncurry (λ (x : A) (u : Vector A (S m)), f x (h u)))
               n.
 
-Definition vector_append {A : UU} {m} (u : Vector A m) {n} (v : Vector A n)
-  : Vector A (m + n)
-  := vector_ind (λ (p : nat) (_ : Vector A p), Vector A (p + n))
-                v
-                (λ (x : A) (p : nat) (_ : Vector A p) (w : Vector A (p + n)),
-                 vcons x w)
-                m u.
-
 (** *** Fusion laws. *)
 
 Lemma vector_map_id {A : UU} {n}
@@ -265,11 +349,4 @@ Proof.
     + reflexivity.
     + change (vector_map (idfun A) (tl v) = tl v).
       apply IHn.
-Defined.
-
-Lemma vector_append_lid {A : UU} (u : Vector A 0) {n} (v : Vector A n)
-  : vector_append u v = v.
-Proof.
-  induction u.
-  reflexivity.
 Defined.
